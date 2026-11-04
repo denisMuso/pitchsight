@@ -9,7 +9,7 @@ jobs:
     runs-on: windows-latest
     timeout-minutes: 25
     env:
-      CUDA_VISIBLE_DEVICES: ""
+      CUDA_VISIBLE_DEVICES: "-1"
       MLFLOW_DISABLE_AGENT_HINT: "1"
     steps:
       - uses: actions/checkout@v4

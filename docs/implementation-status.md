@@ -34,6 +34,7 @@ Tests cover provider retries, denied standings, idempotent live fixture upserts,
 - `powershell -ExecutionPolicy Bypass -File scripts/setup_windows.ps1 -ML`: **exit 0**, dependencies, npm ci, demo seed and doctor succeeded.
 - `powershell -ExecutionPolicy Bypass -File scripts/train_windows.ps1 -Smoke -Output artifacts/runs/smoke-script-verified`: **exit 0**, two-epoch CUDA run **800f83ddc53042a5aac3b6bd2f0b8be4** logged to local MLflow.
 - Earlier direct smoke run **e6ffab838b2046b9b2ae7c20e77ecc2d** remains under artifacts/runs/smoke-verified. Both are SYNTHETIC SMOKE TEST and cannot serve football predictions.
+- CPU CI preflight: explicitly set `CUDA_VISIBLE_DEVICES=-1`, asserted CUDA unavailable, and completed smoke training on **cpu**, MLflow run **134e47bf552d43f0ba315e381628c7e2**. CI now uses `-1`; Windows PowerShell 5.1 removes environment variables assigned an empty string, which had left CUDA enabled in the first preflight attempt.
 - Delivered run_backend.ps1 and run_frontend.ps1 launched in hidden PowerShell processes. Backend /health returns ok/demo; frontend HTTP 200; frontend API proxy returns 8 matches.
 
 ## Browser evidence
