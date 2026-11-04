@@ -5,7 +5,7 @@ Only executed checks count as evidence. Synthetic data validates engineering, no
 | Milestone | Status | Evidence / remaining boundary |
 |---|---|---|
 | 0: native Windows bootstrap | DONE | Native toolchain/CUDA verified; private GitHub repository created and pushed |
-| 1: match vertical slice | DONE in demo; live verification BLOCKED — API TOKEN | Idempotent seed, typed HTTPX adapter, SQLite, FastAPI, React; browser displayed 8 fictional matches |
+| 1: match vertical slice | DONE in demo and live | Idempotent seed, typed HTTPX adapter, SQLite, FastAPI, React; browser verified LIVE API records; 380 PL + 144 CL matches and 56 standings synced |
 | 2: video / human review | DONE for local engineering scope | Real decode/FFmpeg tests, multi-view grouping, review persistence, bounded jobs and recovery; browser upload completed |
 | 3: training pipeline | DONE implementation/smoke; football training BLOCKED — DATASET ACCESS | Official action schema, pretrained features, baseline, temporal/fusion model, AMP, resume and MLflow; two CUDA smoke runs |
 | 4: evaluation / inference | DONE implementation/tests; football validation BLOCKED — DATASET ACCESS | Metrics, validation calibration, checkpoint gates, inference and unavailable-model API; no football model registered |
@@ -35,7 +35,7 @@ Tests cover provider retries, denied standings, idempotent live fixture upserts,
 - `powershell -ExecutionPolicy Bypass -File scripts/train_windows.ps1 -Smoke -Output artifacts/runs/smoke-script-verified`: **exit 0**, two-epoch CUDA run **800f83ddc53042a5aac3b6bd2f0b8be4** logged to local MLflow.
 - Earlier direct smoke run **e6ffab838b2046b9b2ae7c20e77ecc2d** remains under artifacts/runs/smoke-verified. Both are SYNTHETIC SMOKE TEST and cannot serve football predictions.
 - CPU CI preflight: explicitly set `CUDA_VISIBLE_DEVICES=-1`, asserted CUDA unavailable, and completed smoke training on **cpu**, MLflow run **134e47bf552d43f0ba315e381628c7e2**. CI now uses `-1`; Windows PowerShell 5.1 removes environment variables assigned an empty string, which had left CUDA enabled in the first preflight attempt.
-- Delivered run_backend.ps1 and run_frontend.ps1 launched in hidden PowerShell processes. Backend /health returns ok/demo; frontend HTTP 200; frontend API proxy returns 8 matches.
+- Delivered run_backend.ps1 and run_frontend.ps1 launched in hidden PowerShell processes. Initially verified ok/demo and 8 demo matches. After authorized live sync, backend /health returns ok/live; live API contains 524 matches and the frontend displays LIVE API records.
 
 ## Browser evidence
 
@@ -50,7 +50,8 @@ Tests cover provider retries, denied standings, idempotent live fixture upserts,
 
 GitHub authorization completed for denisMuso. [Repository](https://github.com/denisMuso/pitchsight) was created with private visibility (verified with gh), main pushed and upstream configured, with zero ahead/behind commits. [Initial remote CI](https://github.com/denisMuso/pitchsight/actions/runs/41879942060) passed installation, Python lint/tests, CPU smoke training and frontend checks on Windows.
 
-1. Add a football-data.org token to local `.env` for live metadata; endpoint access depends on the provider plan. The user's account has not been tested. The ignored local environment file is prepared and the official free-tier registration page is open.
-2. Obtain SoccerNet NDA/password authorization and place extracted Train/Valid/Test files locally for genuine training. No hours-long training or large dataset download was started.
+Live provider access verified on 2026-11-04: both PL and CL match and standings syncs completed. API counts: 380 PL matches, 144 CL matches, 56 standings rows. Local mode switched to live, backend restarted and browser verified LIVE API provenance. The dashboard currently shows the first 100 records in view. The token remains in ignored `.env`; it was not printed or committed.
+
+1. Obtain SoccerNet NDA/password authorization and place extracted Train/Valid/Test files locally for genuine training. No hours-long training or large dataset download was started.
 
 The local app has no multi-user authentication and runs one worker/process. It is not publicly deployed. The classifier implements action labels, not a severity head. Geometry determines position only. Content hashes cannot detect all semantically duplicated incidents. See the data/model cards, security and offside notes.
