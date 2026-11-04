@@ -1,0 +1,43 @@
+name: Native CPU checks
+on:
+  push:
+  pull_request:
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: windows-latest
+    timeout-minutes: 25
+    env:
+      CUDA_VISIBLE_DEVICES: ""
+      MLFLOW_DISABLE_AGENT_HINT: "1"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Install CPU dependencies
+        run: |
+          python -m pip install torch torchvision --index-url https://download.pytorch.org/whl/cpu
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          python -m pip install -e '.[dev,ml]'
+      - name: Lint and Python tests
+        run: |
+          python -m ruff check backend src scripts tests
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          python -m pytest -q
+      - name: CPU smoke training
+        run: python -m pitchsight.training.run --smoke --output artifacts/runs/ci-smoke
+      - name: Frontend checks
+        working-directory: frontend
+        run: |
+          npm.cmd ci
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          npm.cmd test
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          npm.cmd run build
