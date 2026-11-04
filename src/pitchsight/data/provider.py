@@ -6,6 +6,9 @@ import time
 from threading import Lock
 
 import httpx
+from pydantic import ValidationError
+
+from pitchsight.data.schemas import MatchesResponse, StandingsResponse
 
 logger = logging.getLogger(__name__)
 
@@ -31,6 +34,20 @@ class FootballData:
 
     def close(self):
         self.client.close()
+
+    def matches(self, competition: str) -> MatchesResponse:
+        try:
+            return MatchesResponse.model_validate(self.get(f"competitions/{competition}/matches"))
+        except ValidationError:
+            raise ProviderError("Provider match payload does not match the v4 schema") from None
+
+    def standings(self, competition: str) -> StandingsResponse:
+        try:
+            return StandingsResponse.model_validate(
+                self.get(f"competitions/{competition}/standings")
+            )
+        except ValidationError:
+            raise ProviderError("Provider standings payload does not match the v4 schema") from None
 
     def get(self, endpoint: str) -> dict:
         with self.lock:

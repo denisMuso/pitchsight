@@ -1,19 +1,39 @@
 """Portable diagnostics, with no installation or credential disclosure."""
+
 import importlib.util
 import json
+import os
 import platform
 import shutil
 import subprocess
+from pathlib import Path
 
 
 def diagnose():
-    result = {"os": platform.platform(), "python": platform.python_version(), "disk_free_gb": round(shutil.disk_usage('.').free / 1024**3, 1)}
+    result = {
+        "os": platform.platform(),
+        "python": platform.python_version(),
+        "disk_free_gb": round(shutil.disk_usage(".").free / 1024**3, 1),
+    }
     for tool in ("git", "gh", "node", "npm", "ffmpeg", "ffprobe", "nvidia-smi"):
         result[tool] = shutil.which(tool)
+    from pitchsight.video.processing import executable
+
+    for tool in ("ffmpeg", "ffprobe"):
+        result[tool] = executable(tool)
+    gh = Path(os.environ.get("ProgramFiles", "C:/Program Files")) / "GitHub CLI/gh.exe"
+    if not result["gh"] and gh.is_file():
+        result["gh"] = str(gh)
     if shutil.which("nvidia-smi"):
-        result["gpu_driver"] = subprocess.run(["nvidia-smi", "--query-gpu=name,memory.total,driver_version", "--format=csv,noheader"], capture_output=True, text=True, timeout=15).stdout.strip()
+        result["gpu_driver"] = subprocess.run(
+            ["nvidia-smi", "--query-gpu=name,memory.total,driver_version", "--format=csv,noheader"],
+            capture_output=True,
+            text=True,
+            timeout=15,
+        ).stdout.strip()
     if importlib.util.find_spec("torch"):
         import torch
+
         result["torch"] = torch.__version__
         result["cuda_available"] = torch.cuda.is_available()
         if torch.cuda.is_available():

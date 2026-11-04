@@ -1,0 +1,1 @@
+{"seed":17,"epochs":30,"batch_size":4,"hidden":64,"fusion":"attention","learning_rate":0.001,"weight_decay":0.0001,"accumulation":4,"patience":5,"num_workers":0,"frames":8,"views":2,"size":160,"threshold":0.65}

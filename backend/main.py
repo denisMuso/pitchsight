@@ -10,6 +10,7 @@ from sqlalchemy import func, select, text
 
 from backend.db import Competition, Match, Standing, SyncLog, Team, database
 from pitchsight.data.sync import seed_demo
+from pitchsight.jobs.runner import LocalRunner
 
 load_dotenv()
 
@@ -50,10 +51,15 @@ def create_app(db_path: Path | None = None, mode: str | None = None):
     async def lifespan(app):
         if mode == "demo":
             seed_demo(factory)
+        app.state.runner = LocalRunner(factory)
         yield
+        app.state.runner.close()
         engine.dispose()
 
     app = FastAPI(title="PitchSight Research API", lifespan=lifespan)
+    from backend.security import LocalRequestGuard
+
+    app.add_middleware(LocalRequestGuard)
     app.state.factory = factory
     app.state.engine = engine
     app.add_middleware(
@@ -71,7 +77,14 @@ def create_app(db_path: Path | None = None, mode: str | None = None):
     def ready():
         with factory() as session:
             session.execute(text("SELECT 1"))
-        return {"database": "ready", "model": "MODEL UNAVAILABLE"}
+        from pitchsight.inference.registry import ModelUnavailable, active_manifest
+
+        try:
+            active_manifest()
+            status = "AVAILABLE"
+        except ModelUnavailable:
+            status = "MODEL UNAVAILABLE"
+        return {"database": "ready", "model": status}
 
     @app.get("/api/competitions", response_model=list[CompetitionOut])
     def competitions():
@@ -162,6 +175,18 @@ def create_app(db_path: Path | None = None, mode: str | None = None):
                 ).all()
             }
 
+    from backend.incidents import routes
+
+    routes(
+        app,
+        (db_path.parent if db_path else Path(os.getenv("PITCHSIGHT_DATA_DIR", "data"))) / "videos",
+    )
+    from backend.models import routes as model_routes
+
+    model_routes(app)
+    from backend.geometry import router as geometry_router
+
+    app.include_router(geometry_router)
     return app
 
 

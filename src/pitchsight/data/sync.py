@@ -43,12 +43,12 @@ def seed_demo(factory):
 
 def sync_matches(factory, codes=("PL", "CL"), client=None):
     owned = client is None
-    client = client or FootballData()
     try:
+        client = client or FootballData()
         for code in codes:
             if code not in ("PL", "CL"):
                 raise ProviderError("Only PL and CL are supported")
-            data = client.get(f"competitions/{code}/matches")
+            data = client.matches(code).model_dump(by_alias=True, mode="json")
             with factory.begin() as session:
                 session.merge(
                     Competition(id=code, name=data["competition"]["name"], provenance="LIVE API")
@@ -62,7 +62,7 @@ def sync_matches(factory, codes=("PL", "CL"), client=None):
                     )
                     for key in ("homeTeam", "awayTeam"):
                         team = row[key]
-                        if team["id"] is None:
+                        if team["id"] is None or not team["name"]:
                             raise ProviderError(
                                 "Unresolved team in provider data; sync rolled back"
                             )
@@ -86,7 +86,7 @@ def sync_matches(factory, codes=("PL", "CL"), client=None):
                         )
                     )
             try:
-                table = client.get(f"competitions/{code}/standings")
+                table = client.standings(code).model_dump(by_alias=True, mode="json")
                 with factory.begin() as session:
                     season = table["season"]
                     sid = f"{code}-{season['id']}"
@@ -147,5 +147,5 @@ def sync_matches(factory, codes=("PL", "CL"), client=None):
             )
         raise
     finally:
-        if owned:
+        if owned and client is not None:
             client.close()
