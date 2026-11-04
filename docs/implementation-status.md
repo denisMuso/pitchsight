@@ -4,13 +4,13 @@ Only executed checks count as evidence. Synthetic data validates engineering, no
 
 | Milestone | Status | Evidence / remaining boundary |
 |---|---|---|
-| 0: native Windows bootstrap | DONE locally; GitHub BLOCKED — AUTHORIZATION | Python 3.12 venv, scripts, Git main, FFmpeg and CUDA verified |
+| 0: native Windows bootstrap | DONE | Native toolchain/CUDA verified; private GitHub repository created and pushed |
 | 1: match vertical slice | DONE in demo; live verification BLOCKED — API TOKEN | Idempotent seed, typed HTTPX adapter, SQLite, FastAPI, React; browser displayed 8 fictional matches |
 | 2: video / human review | DONE for local engineering scope | Real decode/FFmpeg tests, multi-view grouping, review persistence, bounded jobs and recovery; browser upload completed |
 | 3: training pipeline | DONE implementation/smoke; football training BLOCKED — DATASET ACCESS | Official action schema, pretrained features, baseline, temporal/fusion model, AMP, resume and MLflow; two CUDA smoke runs |
 | 4: evaluation / inference | DONE implementation/tests; football validation BLOCKED — DATASET ACCESS | Metrics, validation calibration, checkpoint gates, inference and unavailable-model API; no football model registered |
 | 5: offside laboratory | DONE for position-only research scope | Direction, own half, level, uncertainty and homography tests; browser controls checked |
-| 6: engineering / portfolio | DONE locally; remote CI BLOCKED — GITHUB AUTHORIZATION | Documentation, captured screenshot, locks and CPU Windows CI definition; remote CI not claimed |
+| 6: engineering / portfolio | DONE | Documentation, screenshot, locks and Windows CPU CI; remote workflow passed |
 
 ## Final executed verification
 
@@ -48,8 +48,9 @@ Tests cover provider retries, denied standings, idempotent live fixture upserts,
 
 ## Remaining external actions and limitations
 
-1. Complete GitHub browser authorization to create/push the private `pitchsight` repository. A device-login flow was initiated and restarted after interruption. No remote push, public repository or remote CI result is claimed.
-2. Add a football-data.org token to local `.env` for live metadata; endpoint access depends on the provider plan. The user's account has not been tested.
-3. Obtain SoccerNet NDA/password authorization and place extracted Train/Valid/Test files locally for genuine training. No hours-long training or large dataset download was started.
+GitHub authorization completed for denisMuso. [Repository](https://github.com/denisMuso/pitchsight) was created with private visibility (verified with gh), main pushed and upstream configured, with zero ahead/behind commits. [Initial remote CI](https://github.com/denisMuso/pitchsight/actions/runs/41879942060) passed installation, Python lint/tests, CPU smoke training and frontend checks on Windows.
+
+1. Add a football-data.org token to local `.env` for live metadata; endpoint access depends on the provider plan. The user's account has not been tested. The ignored local environment file is prepared and the official free-tier registration page is open.
+2. Obtain SoccerNet NDA/password authorization and place extracted Train/Valid/Test files locally for genuine training. No hours-long training or large dataset download was started.
 
 The local app has no multi-user authentication and runs one worker/process. It is not publicly deployed. The classifier implements action labels, not a severity head. Geometry determines position only. Content hashes cannot detect all semantically duplicated incidents. See the data/model cards, security and offside notes.
