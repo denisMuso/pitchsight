@@ -86,3 +86,5 @@ flowchart LR
 See [implementation status](docs/implementation-status.md) for exact executed evidence and blockers, [Windows GPU setup](docs/windows-rtx3060.md), [architecture](docs/architecture.md), [data sources](docs/data-sources.md), [model card](docs/model-card.md), and [security boundaries](docs/security.md). The [private GitHub repository](https://github.com/denisMuso/pitchsight) is published, and its [initial CPU-only Windows CI run passed](https://github.com/denisMuso/pitchsight/actions/runs/41879942060).
 
 Credits: [SoccerNet MV-Foul / VARS](https://github.com/SoccerNet/sn-mvfoul), [football-data.org](https://www.football-data.org/documentation/api), [IFAB Law 11](https://www.theifab.com/laws/latest/offside/), PyTorch and torchvision. This independent project is not affiliated with those organizations.
+
+For dataset acquisition, training preflight, live progress, and the research walkthrough, see [ML workflow](docs/ml-workflow.md).

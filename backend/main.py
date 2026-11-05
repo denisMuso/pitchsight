@@ -1,6 +1,8 @@
 import os
+import time
 from contextlib import asynccontextmanager
 from pathlib import Path
+from threading import Lock
 
 from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException, Query
@@ -9,7 +11,8 @@ from pydantic import BaseModel, ConfigDict
 from sqlalchemy import func, select, text
 
 from backend.db import Competition, Match, Standing, SyncLog, Team, database
-from pitchsight.data.sync import seed_demo
+from pitchsight.data.provider import ProviderError
+from pitchsight.data.sync import seed_demo, sync_matches
 from pitchsight.jobs.runner import LocalRunner
 
 load_dotenv()
@@ -46,6 +49,8 @@ def create_app(db_path: Path | None = None, mode: str | None = None):
     if mode not in ("demo", "live"):
         raise ValueError("PITCHSIGHT_MODE must be demo or live")
     engine, factory = database(db_path)
+    sync_lock = Lock()
+    last_sync_attempt = -float("inf")
 
     @asynccontextmanager
     async def lifespan(app):
@@ -174,6 +179,26 @@ def create_app(db_path: Path | None = None, mode: str | None = None):
                     select(SyncLog).order_by(SyncLog.id.desc()).limit(20)
                 ).all()
             }
+
+    @app.post("/api/sync")
+    def refresh_data():
+        nonlocal last_sync_attempt
+        if mode != "live":
+            raise HTTPException(409, "Live refresh requires live mode")
+        if not sync_lock.acquire(blocking=False):
+            raise HTTPException(429, "A provider sync is already running")
+        try:
+            remaining = 60 - (time.monotonic() - last_sync_attempt)
+            if remaining > 0:
+                raise HTTPException(429, f"Retry in {int(remaining) + 1} seconds")
+            last_sync_attempt = time.monotonic()
+            try:
+                sync_matches(factory)
+            except ProviderError as exc:
+                raise HTTPException(502, str(exc)) from None
+            return {"status": "finished", "detail": "Inspect sync history for per-competition results"}
+        finally:
+            sync_lock.release()
 
     from backend.incidents import routes
 

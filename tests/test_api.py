@@ -28,3 +28,14 @@ def test_live_does_not_seed(tmp_path):
     app = create_app(tmp_path / "live.sqlite", "live")
     with TestClient(app) as client:
         assert client.get("/api/matches").json()["total"] == 0
+
+
+def test_refresh_is_rate_limited_and_demo_rejected(tmp_path, monkeypatch):
+    calls = []
+    monkeypatch.setattr("backend.main.sync_matches", lambda factory: calls.append(factory))
+    with TestClient(create_app(tmp_path / "live.sqlite", "live")) as client:
+        assert client.post("/api/sync").status_code == 200
+        assert client.post("/api/sync").status_code == 429
+        assert len(calls) == 1
+    with TestClient(create_app(tmp_path / "demo.sqlite", "demo")) as client:
+        assert client.post("/api/sync").status_code == 409

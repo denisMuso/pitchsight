@@ -563,3 +563,25 @@ progress {
     display: none;
   }
 }
+
+:focus-visible {
+  outline: 2px solid #9debb8;
+  outline-offset: 4px;
+}
+button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+input[type="range"] {
+  width: 100%;
+}
+video {
+  max-width: 100%;
+}
+details {
+  margin-block: 16px;
+}
+summary {
+  cursor: pointer;
+}
+code { overflow-wrap: anywhere; }

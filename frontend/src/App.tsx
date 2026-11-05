@@ -15,7 +15,7 @@ const pages = [
   "System / About",
 ];
 export default function App() {
-  const [page, setPage] = useState("Overview");
+  const [page, setPage] = useState("Model Lab");
   const [competition, setCompetition] = useState("");
   const [status, setStatus] = useState("");
   const [offset, setOffset] = useState(0);
@@ -48,7 +48,9 @@ export default function App() {
           setTotal(m.total);
           setCompetitions(c);
           setMode(h.mode);
-          setModelStatus(model.status === "AVAILABLE" ? "Available" : "Not registered");
+          setModelStatus(
+            model.status === "AVAILABLE" ? "Available" : "Not registered",
+          );
         }
       })
       .catch((e) => {
@@ -110,7 +112,9 @@ export default function App() {
               <p className="sub">
                 {page === "Overview"
                   ? "Explore matches, review incidents, and put research into practice."
-                  : "A local, transparent workspace for football research."}
+                  : page === "Model Lab"
+                    ? "Inspect your data, follow training, and evaluate the evidence."
+                    : "A local, transparent workspace for football research."}
               </p>
             </div>
             <span className="version">RESEARCH EDITION / 01</span>
@@ -128,9 +132,7 @@ export default function App() {
                     <article>
                       <label>Matching records</label>
                       <strong>
-                        {loading
-                          ? "…"
-                          : total.toString().padStart(2, "0")}
+                        {loading ? "…" : total.toString().padStart(2, "0")}
                       </strong>
                       <small>
                         {mode === "demo"
@@ -147,7 +149,7 @@ export default function App() {
                     </article>
                     <article>
                       <label>Model availability</label>
-                    <strong className="small-value">{modelStatus}</strong>
+                      <strong className="small-value">{modelStatus}</strong>
                       <small>No predictions without a trained model</small>
                     </article>
                   </div>
@@ -236,7 +238,8 @@ export default function App() {
                     </tr>
                   </thead>
                   <tbody>
-                    {!loading && !error &&
+                    {!loading &&
+                      !error &&
                       rows.map((m) => (
                         <tr key={m.id}>
                           <td>
@@ -278,15 +281,22 @@ export default function App() {
                 <button
                   disabled={loading || !!error || offset === 0}
                   onClick={() => setOffset(Math.max(0, offset - pageSize))}
-                >Previous</button>
+                >
+                  Previous
+                </button>
                 <span role="status">
-                  {loading ? "Loading matches…" : error ? "Matches unavailable" :
-                    `${total ? offset + 1 : 0}–${Math.min(offset + rows.length, total)} of ${total} matches`}
+                  {loading
+                    ? "Loading matches…"
+                    : error
+                      ? "Matches unavailable"
+                      : `${total ? offset + 1 : 0}–${Math.min(offset + rows.length, total)} of ${total} matches`}
                 </span>
                 <button
                   disabled={loading || !!error || offset + pageSize >= total}
                   onClick={() => setOffset(offset + pageSize)}
-                >Next</button>
+                >
+                  Next
+                </button>
               </div>
             </>
           )}

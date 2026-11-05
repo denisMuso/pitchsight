@@ -19,6 +19,21 @@ from pitchsight.evaluation.metrics import calibrate, metrics, plot_reliability, 
 from pitchsight.ml.dataset import ACTION_CLASSES, digest_file, load_soccernet
 from pitchsight.ml.features import ENCODER, PREPROCESSING, Encoder, cached_features
 from pitchsight.ml.models import TemporalFusion, device
+from pitchsight.training.preflight import validate_config
+
+RUN_OUTPUT = None
+
+
+def progress(output, stage, **details):
+    payload = {
+        "model_version": output.name,
+        "stage": stage,
+        "updated_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+        **details,
+    }
+    temporary = output / "progress.tmp"
+    temporary.write_text(json.dumps(payload), encoding="utf-8")
+    temporary.replace(output / "progress.json")
 
 
 def seed_all(seed):
@@ -139,6 +154,14 @@ def train_temporal(splits, config, output, classes, fingerprint, resume=None):
             }
         )
         mlflow.log_metrics(history[-1], step=epoch)
+        print(json.dumps({"epoch": epoch + 1, "validation_loss": val_loss}), flush=True)
+        progress(
+            output,
+            "training",
+            epoch=epoch + 1,
+            max_epochs=config["epochs"],
+            validation_loss=val_loss,
+        )
         if val_loss < best:
             best, stale = val_loss, 0
             checkpoint(output / "model.pt", model, metadata)
@@ -268,6 +291,14 @@ def prepare(root, config, output):
                         f"Corrupt incident {record.incident_id}, view {view}; repair data before training"
                     ) from exc
                 mask[i, view] = True
+            if (i + 1) % 50 == 0 or i + 1 == len(selected):
+                progress(output, "features", split=split, completed=i + 1, total=len(selected))
+                print(
+                    json.dumps(
+                        {"feature_split": split, "completed": i + 1, "total": len(selected)}
+                    ),
+                    flush=True,
+                )
         splits[split] = (x, mask, np.array([r.label for r in selected], dtype=np.int64))
     return splits, fingerprint, ACTION_CLASSES
 
@@ -286,6 +317,7 @@ def synthetic(config):
 
 
 def main():
+    global RUN_OUTPUT
     parser = argparse.ArgumentParser()
     parser.add_argument("--config", type=Path, default=Path("configs/smoke.json"))
     parser.add_argument("--dataset", type=Path)
@@ -296,14 +328,14 @@ def main():
     config = json.loads(args.config.read_text())
     if not args.smoke and not args.dataset:
         parser.error("Real training requires --dataset pointing to authorized SoccerNet data")
-    for key in ("epochs", "batch_size", "accumulation", "frames", "views", "patience"):
-        if not isinstance(config[key], int) or config[key] < 1:
-            raise ValueError(f"Invalid {key}")
+    validate_config(config)
     seed_all(config["seed"])
     output = args.output or Path("artifacts/runs") / time.strftime("%Y%m%d-%H%M%S")
     output.mkdir(parents=True, exist_ok=True)
     if (output / "model.pt").exists() and not args.resume:
         raise ValueError("Output contains a model; use a new directory or explicit --resume")
+    RUN_OUTPUT = output
+    progress(output, "starting")
     splits, fingerprint, classes = (
         synthetic(config) if args.smoke else prepare(args.dataset, config, output)
     )
@@ -366,6 +398,7 @@ def main():
         )
         for name in ("metrics.json", "manifest.json", "baseline.json", "reliability.png"):
             mlflow.log_artifact(str(output / name))
+        progress(output, "completed", run_id=run.info.run_id)
         print(
             json.dumps(
                 {
@@ -379,4 +412,9 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    except BaseException:
+        if RUN_OUTPUT is not None:
+            progress(RUN_OUTPUT, "failed", detail="See local training log for the error")
+        raise

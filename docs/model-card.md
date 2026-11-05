@@ -1,6 +1,6 @@
 # Model card
 
-Status: **No trained football model registered. Real training BLOCKED — DATASET ACCESS.**
+Status: **No trained football model registered. Authorized data audited; first genuine training run is in progress.**
 
 Implemented model: frozen torchvision MobileNetV3-Small ImageNet features (576 dimensions per frame), temporal GRU with attention pooling, then masked mean or learned attention across camera views. The classification head uses the authorized dataset's eight action classes. There is no invented severity head. Logistic regression on pooled features is the reproducible baseline; its parameters export as numeric JSON, not pickle.
 

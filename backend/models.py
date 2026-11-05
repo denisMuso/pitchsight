@@ -13,6 +13,16 @@ def routes(app):
     router = APIRouter(prefix="/api")
     factory = app.state.factory
 
+    @router.get("/training/preflight")
+    def training_preflight():
+        path = Path("artifacts/preflight.json")
+        if not path.is_file():
+            return {"status": "not checked", "checks": [], "dataset": None}
+        try:
+            return json.loads(path.read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            raise HTTPException(503, "Preflight report unreadable; rerun the preflight CLI") from None
+
     @router.get("/models")
     def models():
         try:
@@ -25,6 +35,16 @@ def routes(app):
     def experiments():
         results = []
         for path in sorted(Path("artifacts/runs").glob("*/metrics.json"), reverse=True)[:50]:
+            try:
+                results.append(json.loads(path.read_text(encoding="utf-8")))
+            except (OSError, ValueError):
+                continue
+        return {"items": results}
+
+    @router.get("/training/progress")
+    def training_progress():
+        results = []
+        for path in sorted(Path("artifacts/runs").glob("*/progress.json"), reverse=True)[:50]:
             try:
                 results.append(json.loads(path.read_text(encoding="utf-8")))
             except (OSError, ValueError):

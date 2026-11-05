@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { api } from "./api";
+import MultiView from "./MultiView";
 type Incident = { id: string; title: string };
 type Detail = {
   incident: Incident;
@@ -48,7 +49,9 @@ export default function Incidents() {
   }
   useEffect(() => {
     refresh().catch((e) => setError(e.message));
-    api<{status:string}>("/api/models").then(m=>setModelStatus(m.status)).catch(e=>setError(e.message));
+    api<{ status: string }>("/api/models")
+      .then((m) => setModelStatus(m.status))
+      .catch((e) => setError(e.message));
   }, []);
   useEffect(() => {
     if (!selected) return;
@@ -228,25 +231,47 @@ export default function Incidents() {
               <p className="muted">
                 {detail?.predictions.length
                   ? "Recorded model output below."
-                  : modelStatus === "AVAILABLE" ? "A registered research model is available for analysis." : `${modelStatus} — no predictions are simulated.`}
+                  : modelStatus === "AVAILABLE"
+                    ? "A registered research model is available for analysis."
+                    : `${modelStatus} — no predictions are simulated.`}
               </p>
             </>
           )}
         </section>
         <section className="stack">
-          {detail?.views.map((v) => (
-            <article className="panel" key={v.id}>
-              <h2>{v.view_name}</h2>
-              <video controls preload="none" poster={v.thumbnail} src={v.url} />
-              <p className="muted">
-                {v.metadata.duration.toFixed(2)} sec · {v.metadata.samples}{" "}
-                sampled frames
-              </p>
-            </article>
-          ))}
+          {detail && <MultiView key={selected} views={detail.views} />}
           {selected && (
             <article className="panel">
               <h2>Human review</h2>
+              <button
+                disabled={!detail}
+                onClick={() => {
+                  if (!detail) return;
+                  const blob = new Blob(
+                    [
+                      JSON.stringify(
+                        {
+                          schema_version: 1,
+                          exported_at: new Date().toISOString(),
+                          research_only: true,
+                          ...detail,
+                        },
+                        null,
+                        2,
+                      ),
+                    ],
+                    { type: "application/json" },
+                  );
+                  const url = URL.createObjectURL(blob);
+                  const link = document.createElement("a");
+                  link.href = url;
+                  link.download = `pitchsight-review-${selected}.json`;
+                  link.click();
+                  setTimeout(() => URL.revokeObjectURL(url), 1000);
+                }}
+              >
+                Export review JSON
+              </button>
               <form
                 className="stack"
                 onSubmit={(e) => {

@@ -9,6 +9,7 @@ type Sync = {
   detail: string;
 };
 export default function System() {
+  const [refreshing, setRefreshing] = useState(false);
   const [health, setHealth] = useState<Health | null>(null),
     [ready, setReady] = useState<{ database: string; model: string } | null>(
       null,
@@ -66,6 +67,44 @@ export default function System() {
       {error && <p className="error">{error}</p>}
       <div className="panel">
         <h2>Source and sync history</h2>
+        <p className="muted">
+          Last completed sync:{" "}
+          {sync.find((s) => s.mode === health?.mode && s.status === "completed")
+            ? new Date(
+                sync.find(
+                  (s) => s.mode === health?.mode && s.status === "completed",
+                )!.created_at,
+              ).toLocaleString()
+            : "No completed sync"}
+          . Each competition records its own result below.
+        </p>
+        <button
+          disabled={refreshing || health?.mode !== "live"}
+          onClick={async () => {
+            setRefreshing(true);
+            setError("");
+            try {
+              await api("/api/sync", { method: "POST" });
+            } catch (e) {
+              setError((e as Error).message);
+            } finally {
+              try {
+                setSync(
+                  (await api<{ items: Sync[] }>("/api/sync/status")).items,
+                );
+              } catch (e) {
+                setError((e as Error).message);
+              }
+              setRefreshing(false);
+            }
+          }}
+        >
+          {refreshing ? "Syncing provider data…" : "Refresh match metadata"}
+        </button>
+        <p className="muted">
+          Refresh is rate-limited to once per minute. Provider requests run
+          sequentially.
+        </p>
         {sync.map((s) => (
           <div key={s.id}>
             <p>
