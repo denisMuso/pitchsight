@@ -50,7 +50,7 @@ Tests cover provider retries, denied standings, idempotent live fixture upserts,
 
 GitHub authorization completed for denisMuso. [Repository](https://github.com/denisMuso/pitchsight) was created with private visibility (verified with gh), main pushed and upstream configured, with zero ahead/behind commits. [Initial remote CI](https://github.com/denisMuso/pitchsight/actions/runs/41879942060) passed installation, Python lint/tests, CPU smoke training and frontend checks on Windows.
 
-Live provider access verified on 2026-11-04: both PL and CL match and standings syncs completed. API counts: 380 PL matches, 144 CL matches, 56 standings rows. Local mode switched to live, backend restarted and browser verified LIVE API provenance. The dashboard currently shows the first 100 records in view. The token remains in ignored `.env`; it was not printed or committed.
+Live provider access verified on 2026-11-04: both PL and CL match and standings syncs completed. API counts: 380 PL matches, 144 CL matches, 56 standings rows. Local mode switched to live, backend restarted and browser verified LIVE API provenance. The dashboard paginates all matches in groups of 25 and displays the filtered total. Browser verified next-page navigation (26-50 of 524) and filter reset (1-25 of 144 CL matches, Previous disabled). Frontend tests (3) and production build passed after this change. The token remains in ignored `.env`; it was not printed or committed.
 
 1. Obtain SoccerNet NDA/password authorization and place extracted Train/Valid/Test files locally for genuine training. No hours-long training or large dataset download was started.
 

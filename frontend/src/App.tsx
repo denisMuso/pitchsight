@@ -18,6 +18,9 @@ export default function App() {
   const [page, setPage] = useState("Overview");
   const [competition, setCompetition] = useState("");
   const [status, setStatus] = useState("");
+  const [offset, setOffset] = useState(0);
+  const [total, setTotal] = useState(0);
+  const pageSize = 25;
   const [rows, setRows] = useState<Match[]>([]);
   const [competitions, setCompetitions] = useState<
     { id: string; name: string }[]
@@ -32,8 +35,8 @@ export default function App() {
     setLoading(true);
     setError("");
     Promise.all([
-      api<{ items: Match[] }>(
-        `/api/matches?competition=${encodeURIComponent(competition)}&status=${encodeURIComponent(status)}&limit=100`,
+      api<{ items: Match[]; total: number }>(
+        `/api/matches?competition=${encodeURIComponent(competition)}&status=${encodeURIComponent(status)}&limit=${pageSize}&offset=${offset}`,
       ),
       api<{ id: string; name: string }[]>("/api/competitions"),
       api<{ mode: string }>("/health"),
@@ -42,6 +45,7 @@ export default function App() {
       .then(([m, c, h, model]) => {
         if (active) {
           setRows(m.items);
+          setTotal(m.total);
           setCompetitions(c);
           setMode(h.mode);
           setModelStatus(model.status === "AVAILABLE" ? "Available" : "Not registered");
@@ -56,7 +60,7 @@ export default function App() {
     return () => {
       active = false;
     };
-  }, [competition, status, retry]);
+  }, [competition, status, retry, offset]);
   return (
     <div className="shell">
       <aside>
@@ -122,11 +126,11 @@ export default function App() {
                 <>
                   <div className="stats">
                     <article>
-                      <label>Matches in view</label>
+                      <label>Matching records</label>
                       <strong>
                         {loading
                           ? "…"
-                          : rows.length.toString().padStart(2, "0")}
+                          : total.toString().padStart(2, "0")}
                       </strong>
                       <small>
                         {mode === "demo"
@@ -188,7 +192,10 @@ export default function App() {
                 <select
                   aria-label="Competition"
                   value={competition}
-                  onChange={(e) => setCompetition(e.target.value)}
+                  onChange={(e) => {
+                    setCompetition(e.target.value);
+                    setOffset(0);
+                  }}
                 >
                   <option value="">All competitions</option>
                   {competitions.map((c) => (
@@ -200,11 +207,21 @@ export default function App() {
                 <select
                   aria-label="Match status"
                   value={status}
-                  onChange={(e) => setStatus(e.target.value)}
+                  onChange={(e) => {
+                    setStatus(e.target.value);
+                    setOffset(0);
+                  }}
                 >
                   <option value="">All statuses</option>
                   <option>FINISHED</option>
                   <option>SCHEDULED</option>
+                  <option>TIMED</option>
+                  <option>IN_PLAY</option>
+                  <option>PAUSED</option>
+                  <option>POSTPONED</option>
+                  <option>SUSPENDED</option>
+                  <option>CANCELLED</option>
+                  <option>AWARDED</option>
                 </select>
               </div>
               <div className="table-wrap">
@@ -219,7 +236,7 @@ export default function App() {
                     </tr>
                   </thead>
                   <tbody>
-                    {!loading &&
+                    {!loading && !error &&
                       rows.map((m) => (
                         <tr key={m.id}>
                           <td>
@@ -253,9 +270,23 @@ export default function App() {
                 {loading && (
                   <p className="empty">Loading local match records…</p>
                 )}
-                {!loading && !rows.length && (
+                {!loading && !error && !rows.length && (
                   <p className="empty">No matches for these filters.</p>
                 )}
+              </div>
+              <div className="filters" aria-label="Match pagination">
+                <button
+                  disabled={loading || !!error || offset === 0}
+                  onClick={() => setOffset(Math.max(0, offset - pageSize))}
+                >Previous</button>
+                <span role="status">
+                  {loading ? "Loading matches…" : error ? "Matches unavailable" :
+                    `${total ? offset + 1 : 0}–${Math.min(offset + rows.length, total)} of ${total} matches`}
+                </span>
+                <button
+                  disabled={loading || !!error || offset + pageSize >= total}
+                  onClick={() => setOffset(offset + pageSize)}
+                >Next</button>
               </div>
             </>
           )}
