@@ -21,7 +21,9 @@ def routes(app):
         try:
             return json.loads(path.read_text(encoding="utf-8"))
         except (OSError, ValueError):
-            raise HTTPException(503, "Preflight report unreadable; rerun the preflight CLI") from None
+            raise HTTPException(
+                503, "Preflight report unreadable; rerun the preflight CLI"
+            ) from None
 
     @router.get("/models")
     def models():
@@ -36,7 +38,18 @@ def routes(app):
         results = []
         for path in sorted(Path("artifacts/runs").glob("*/metrics.json"), reverse=True)[:50]:
             try:
-                results.append(json.loads(path.read_text(encoding="utf-8")))
+                result = json.loads(path.read_text(encoding="utf-8"))
+                audit_path = path.parent / "evaluation-audit.json"
+                if audit_path.is_file():
+                    audit = json.loads(audit_path.read_text(encoding="utf-8"))
+                    result["audit"] = {
+                        split: {
+                            "selective": value["selective"],
+                            "paired_comparison": value["paired_comparison"],
+                        }
+                        for split, value in audit["splits"].items()
+                    }
+                results.append(result)
             except (OSError, ValueError):
                 continue
         return {"items": results}

@@ -63,6 +63,7 @@ def test_manifest_gates_and_hash(tmp_path):
         ("preprocessing", "unknown"),
         ("checkpoint", "../../../outside.pt"),
         ("calibration_split", "test"),
+        ("metrics_provenance", "validation-only development; no held-out test evaluation"),
     ]:
         path.write_text(json.dumps(manifest | {field: invalid}))
         with pytest.raises(ModelUnavailable):

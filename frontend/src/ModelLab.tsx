@@ -5,6 +5,7 @@ type Run = {
   model_version: string;
   run_id: string;
   temporal: {
+    split?: string;
     report?: Record<
       string,
       { precision: number; recall: number; "f1-score": number; support: number }
@@ -19,7 +20,24 @@ type Run = {
     classifier_ms_per_incident: number;
     peak_cuda_mib: number | null;
   };
-  baseline: { accuracy: number };
+  baseline: { accuracy: number; converged?: boolean };
+  audit?: Record<
+    string,
+    {
+      selective: {
+        threshold: number;
+        accepted: number;
+        abstained: number;
+        coverage: number;
+        accepted_accuracy: number | null;
+      };
+      paired_comparison: {
+        accuracy_delta: number;
+        percentile_95_interval: number[];
+        limitation: string;
+      };
+    }
+  >;
 };
 export default function ModelLab() {
   const [progress, setProgress] = useState<
@@ -202,16 +220,65 @@ export default function ModelLab() {
               foul recognition.
             </p>
           )}
+          {r.temporal.split === "validation" && (
+            <p className="error">
+              Development run: validation metrics also informed early stopping
+              and calibration. These are not held-out test results; this run
+              cannot be registered.
+            </p>
+          )}
+          {r.baseline.converged === false && (
+            <p className="error">
+              Logistic baseline reached its iteration limit; interpret this
+              comparison cautiously.
+            </p>
+          )}
+          {r.audit?.test && (
+            <section>
+              <h3>Fixed-threshold test audit</h3>
+              <p>
+                Threshold {r.audit.test.selective.threshold}:{" "}
+                {r.audit.test.selective.accepted} accepted,{" "}
+                {r.audit.test.selective.abstained} inconclusive.
+              </p>
+              <p>
+                Coverage: {(r.audit.test.selective.coverage * 100).toFixed(1)}%
+                · Accepted accuracy:{" "}
+                {r.audit.test.selective.accepted_accuracy === null
+                  ? "Not estimable (no accepted predictions)"
+                  : `${(r.audit.test.selective.accepted_accuracy * 100).toFixed(1)}%`}
+              </p>
+              <p>
+                Accuracy difference versus logistic baseline:{" "}
+                {(r.audit.test.paired_comparison.accuracy_delta * 100).toFixed(
+                  1,
+                )}{" "}
+                percentage points; paired bootstrap 95% interval [
+                {r.audit.test.paired_comparison.percentile_95_interval
+                  .map((v) => (v * 100).toFixed(1))
+                  .join(", ")}
+                ].
+              </p>
+              <p className="muted">
+                {r.audit.test.paired_comparison.limitation}. This interval does
+                not establish deployment fitness.
+              </p>
+            </section>
+          )}
           <div className="stats">
             <article>
-              <label>Fixture / test accuracy</label>
+              <label>
+                {r.temporal.split === "validation"
+                  ? "Validation accuracy"
+                  : "Fixture / test accuracy"}
+              </label>
               <strong>{(r.temporal.accuracy * 100).toFixed(1)}%</strong>
               <small>{r.provenance}</small>
             </article>
             <article>
               <label>Logistic baseline</label>
               <strong>{(r.baseline.accuracy * 100).toFixed(1)}%</strong>
-              <small>Same held-out fixture split</small>
+              <small>Same {r.temporal.split || "test"} split</small>
             </article>
             <article>
               <label>Classifier latency</label>
@@ -243,7 +310,7 @@ export default function ModelLab() {
           </table>
           {r.temporal.report && (
             <>
-              <h2>Per-class test performance</h2>
+              <h2>Per-class {r.temporal.split || "test"} performance</h2>
               <div className="table-wrap">
                 <table>
                   <thead>

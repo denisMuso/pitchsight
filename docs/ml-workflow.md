@@ -73,3 +73,19 @@ one-minute cooldown. Each competition has its own completed or partial status.
 4. Explain validation-only calibration and why confidence is not a referee verdict.
 5. Open an authorized incident, align camera views and save an independent review.
 6. Export the review. Keep dataset archives, credentials and checkpoints local.
+
+## Development after the first evaluation
+
+The [first football result](first-football-experiment.md) is weak and remains inactive.
+Use validation-only runs for further development:
+
+```powershell
+.\scripts\train_windows.ps1 -Dataset data/soccernet/mvfouls -ValidationOnly -Config configs/rtx3060-validation.json -Output artifacts/runs/new-development-run
+```
+
+This mode does not extract or evaluate test features. Validation is also used for
+early stopping and temperature fitting, so development metrics are optimistic relative
+to independent evaluation. The registry rejects these manifests. The standardized
+logistic baseline fits its scaler on train only and exports equivalent coefficients in
+raw feature space, plus iteration count and convergence status. New runs save baseline
+metrics before temporal training starts. Test results from the first run are retained.

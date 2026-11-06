@@ -64,13 +64,37 @@ def test_metrics_calibration_and_abstention():
 
 
 def test_baseline_numeric_export(tmp_path):
-    from pitchsight.training.run import baseline, synthetic
+    from scipy.special import softmax
+
+    from pitchsight.training.run import baseline, mean_features, synthetic
 
     splits, _, classes = synthetic({"seed": 17})
     result = baseline(splits, classes, tmp_path)
     exported = json.loads((tmp_path / "baseline.json").read_text())
     assert len(exported["coef"]) == 3
     assert 0 <= result["accuracy"] <= 1
+    assert exported["converged"]
+    x, mask, y = splits["test"]
+    p = softmax(
+        mean_features(x, mask) @ np.array(exported["coef"]).T + exported["intercept"], axis=1
+    )
+    assert metrics(y, p, classes)["accuracy"] == result["accuracy"]
+
+
+def test_validation_only_training_never_requires_test(tmp_path, monkeypatch):
+    from pathlib import Path
+
+    from pitchsight.training.run import baseline, synthetic, train_temporal
+
+    monkeypatch.setattr("pitchsight.training.run.mlflow.log_metrics", lambda *a, **k: None)
+    config = json.loads(Path("configs/smoke.json").read_text()) | {"epochs": 1}
+    splits, fingerprint, classes = synthetic(config)
+    del splits["test"]
+    assert baseline(splits, classes, tmp_path, "validation")["split"] == "validation"
+    _, _, report = train_temporal(
+        splits, config, tmp_path, classes, fingerprint, evaluation_split="validation"
+    )
+    assert report["split"] == "validation"
 
 
 def test_registry_unavailable(tmp_path):

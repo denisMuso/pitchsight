@@ -45,6 +45,8 @@ def read_manifest(path: Path):
         raise ModelUnavailable(
             "MODEL UNAVAILABLE: synthetic runs cannot serve football predictions"
         )
+    if manifest.metrics_provenance.startswith("validation-only"):
+        raise ModelUnavailable("MODEL UNAVAILABLE: development-only run has no held-out evaluation")
     if (
         manifest.encoder != "mobilenet_v3_small-IMAGENET1K_V1"
         or manifest.preprocessing != "rgb-square-imagenet-normalization-v1"

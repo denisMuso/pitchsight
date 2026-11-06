@@ -1,8 +1,8 @@
 # PitchSight
 
-An unofficial, Windows-native football research workspace: match metadata, authorized incident clips, human review, trainable multi-view recognition, and an interactive offside-position laboratory.
+An unofficial, Windows-native ML research workspace for multi-view football action recognition: dataset audits, GPU training, experiment evaluation, authorized incident clips, and independent human review. Match metadata and offside-position geometry provide supporting context.
 
-**This is not a validated VAR system. No football accuracy is claimed.** The default dashboard contains eight explicitly fictional matches. A real CUDA smoke experiment has run on an RTX 3060; its synthetic scores are engineering evidence only. Real football training awaits authorized SoccerNet data.
+**This is not a validated VAR system.** Genuine SoccerNet-MVFoul training and evaluation have run on an RTX 3060. The first model achieved only 21.33% test accuracy and remains inactive. A subsequent validation-only experiment improved validation accuracy to 37.62%; this is not an independent test result. See the [experiment report](docs/first-football-experiment.md) for baselines, abstention, limitations and the confusion matrix. The app opens to Model Lab; fresh installations use explicitly fictional match metadata until a provider token and live sync are configured.
 
 ![Actual local dashboard with fictional demo fixtures](docs/screenshots/overview.png)
 

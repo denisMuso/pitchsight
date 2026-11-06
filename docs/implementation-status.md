@@ -1,4 +1,4 @@
-# Implementation status — 2026-11-04
+# Implementation status — 2026-11-06
 
 Only executed checks count as evidence. Synthetic data validates engineering, not football performance.
 
@@ -7,8 +7,8 @@ Only executed checks count as evidence. Synthetic data validates engineering, no
 | 0: native Windows bootstrap | DONE | Native toolchain/CUDA verified; private GitHub repository created and pushed |
 | 1: match vertical slice | DONE in demo and live | Idempotent seed, typed HTTPX adapter, SQLite, FastAPI, React; browser verified LIVE API records; 380 PL + 144 CL matches and 56 standings synced |
 | 2: video / human review | DONE for local engineering scope | Real decode/FFmpeg tests, multi-view grouping, review persistence, bounded jobs and recovery; browser upload completed |
-| 3: training pipeline | DONE implementation/smoke; genuine run IN PROGRESS | Authorized MV-Foul downloaded/decrypted, preflight passed; GPU feature extraction started |
-| 4: evaluation / inference | DONE implementation/tests; genuine metrics PENDING RUN | Metrics, validation calibration, checkpoint gates, inference and unavailable-model API; no football model registered |
+| 3: training pipeline | DONE including first genuine run | Authorized MV-Foul, pretrained features, CUDA training and MLflow completed; further development uses validation only |
+| 4: evaluation / inference | DONE engineering and first evaluation; model NOT ACTIVATED | Weak genuine test result audited; actual two-view inference matches saved probabilities; no active football model |
 | 5: offside laboratory | DONE for position-only research scope | Direction, own half, level, uncertainty and homography tests; browser controls checked |
 | 6: engineering / portfolio | DONE | Documentation, screenshot, locks and Windows CPU CI; remote workflow passed |
 
@@ -52,7 +52,7 @@ GitHub authorization completed for denisMuso. [Repository](https://github.com/de
 
 Live provider access verified on 2026-11-04: both PL and CL match and standings syncs completed. API counts: 380 PL matches, 144 CL matches, 56 standings rows. Local mode switched to live, backend restarted and browser verified LIVE API provenance. The dashboard paginates all matches in groups of 25 and displays the filtered total. Browser verified next-page navigation (26-50 of 524) and filter reset (1-25 of 144 CL matches, Previous disabled). Frontend tests (3) and production build passed after this change. The token remains in ignored `.env`; it was not printed or committed.
 
-SoccerNet NDA access obtained. The official SoccerNet 0.2.0 downloader fetched 224p archives from its Hugging Face mirror (3,076,168,763 bytes). The supplied password decrypted them. Audit: 2,853 train / 404 validation / 300 test incidents, 71 excluded unknown labels, all eight classes present, exact-content leakage checks passed. The first genuine GPU run is in progress under artifacts/runs/mvfoul-rtx3060-first; results remain pending. Live progress and local logs are available. No football model is registered yet.
+SoccerNet NDA access obtained. The official SoccerNet 0.2.0 downloader fetched 224p archives from its Hugging Face mirror (3,076,168,763 bytes). The supplied password decrypted them. Audit: 2,853 train / 404 validation / 300 test incidents, 71 excluded unknown labels, all eight classes present, exact-content leakage checks passed. The first genuine GPU run completed under artifacts/runs/mvfoul-rtx3060-first: test accuracy 21.33%, macro F1 0.1230; 299/300 abstentions at threshold 0.65. It was not activated. See first-football-experiment.md for the fixed audit and limitations. Live progress and local logs are available. No football model is registered yet.
 
 ML-focused improvements: saved training preflight (configuration, disk/VRAM, labels/splits, memory estimate); live run progress; per-class metrics/confusion matrices/calibration summaries; shared video controls with session-local manual offsets; JSON review export; metadata refresh with one-minute cooldown; keyboard focus styling and responsive tables. Browser verified the saved preflight and per-class tables and two synthetic review views. Shared playback is approximate and is not evidence of camera synchronization accuracy.
 
@@ -61,3 +61,29 @@ Additional browser checks: shared seek set both videos to 1.0s; a 0.5s second-vi
 Latest validation: Ruff passed; 37 Python tests passed (20.29s), 3 frontend tests passed, TypeScript/Vite build passed (22 modules). CPU smoke run d8a65aae5cf44b45bbee37eb5a0c0137 completed both epochs and wrote progress stage completed. Data extraction tests use encrypted fixtures, wrong-password rejection and unsafe-path rejection. These checks do not establish football-model performance.
 
 The local app has no multi-user authentication and runs one worker/process. It is not publicly deployed. The classifier implements action labels, not a severity head. Geometry determines position only. Content hashes cannot detect all semantically duplicated incidents. See the data/model cards, security and offside notes.
+
+## First genuine evaluation and development controls
+
+The first run completed eight epochs; the fixed audit reproduced both temporal and
+logistic test confusion matrices exactly. An isolated registry processed two real
+views and reproduced audit probabilities within 1e-5. It returned INCONCLUSIVE and
+did not change the active app registry. See [experiment report](first-football-experiment.md).
+
+Added paired-bootstrap accuracy comparisons, fixed-threshold coverage/accepted
+accuracy, per-incident error records and validation-only missing-view ablation.
+Standardized logistic regression fits scaling on training data only and records
+convergence. Validation-only development skips test feature extraction/evaluation
+and is explicitly rejected by the model registry. Reports and the UI distinguish
+development validation scores from held-out test scores.
+
+Verification on 2026-11-06: 40 Python tests passed in 33.44s, 3 frontend tests passed,
+TypeScript/Vite build passed, Ruff passed. CPU validation-only CLI smoke run
+b5f46804c69a4bf9864a2e00447fd234 completed, saved baseline metrics and validation
+provenance. Browser verified the fixed-threshold audit (1 accepted / 299 inconclusive)
+and MODEL UNAVAILABLE status. The evaluation figure was rendered and visually checked.
+
+Validation-only run mvfoul-validation-lr3e4 completed 13 epochs on CUDA (MLflow
+19c92dd300cf4c48bce269f57f1006c8): accuracy 37.62%, macro F1 0.1917 on validation;
+standardized logistic baseline accuracy 26.73%, macro F1 0.1650, converged after
+284 iterations. Best validation loss 1.63876. Test was not reevaluated. The actual
+development manifest was rejected by the registry and no active registry file exists.

@@ -12,6 +12,7 @@ import numpy as np
 import torch
 from scipy.special import softmax
 from sklearn.linear_model import LogisticRegression
+from sklearn.preprocessing import StandardScaler
 from torch import nn
 from torch.utils.data import DataLoader, TensorDataset
 
@@ -58,7 +59,9 @@ def checkpoint(path, model, metadata):
     temporary.replace(path)
 
 
-def train_temporal(splits, config, output, classes, fingerprint, resume=None):
+def train_temporal(
+    splits, config, output, classes, fingerprint, resume=None, evaluation_split="test"
+):
     target = device()
     features = splits["train"][0].shape[-1]
     model = TemporalFusion(features, len(classes), config["hidden"], config["fusion"]).to(target)
@@ -198,12 +201,14 @@ def train_temporal(splits, config, output, classes, fingerprint, resume=None):
     plot_reliability(calibration, output / "reliability.png")
     # Test split is touched only after training/early stopping/calibration are fixed.
     begin = time.perf_counter()
-    test_logits = predict_logits(model, datasets["test"], target, config["batch_size"])
-    latency = (time.perf_counter() - begin) * 1000 / len(datasets["test"])
-    result = metrics(splits["test"][2], softmax(test_logits / temperature, axis=1), classes)
+    test_logits = predict_logits(model, datasets[evaluation_split], target, config["batch_size"])
+    latency = (time.perf_counter() - begin) * 1000 / len(datasets[evaluation_split])
+    result = metrics(
+        splits[evaluation_split][2], softmax(test_logits / temperature, axis=1), classes
+    )
     result.update(
         {
-            "split": "test",
+            "split": evaluation_split,
             "temperature": temperature,
             "calibration_split": "validation",
             "reliability": calibration,
@@ -231,10 +236,12 @@ def mean_features(x, mask):
     return (x.mean(axis=2) * mask[..., None]).sum(axis=1) / mask.sum(axis=1, keepdims=True)
 
 
-def baseline(splits, classes, output):
+def baseline(splits, classes, output, evaluation_split="test"):
     x, mask, y = splits["train"]
-    classifier = LogisticRegression(class_weight="balanced", max_iter=500, random_state=17)
-    classifier.fit(mean_features(x, mask), y)
+    scaler = StandardScaler()
+    features = scaler.fit_transform(mean_features(x, mask))
+    classifier = LogisticRegression(class_weight="balanced", max_iter=2000, random_state=17)
+    classifier.fit(features, y)
     if list(classifier.classes_) != list(range(len(classes))):
         raise ValueError("Baseline training classes mismatch")
     # Export numeric coefficients as JSON, never an executable pickle.
@@ -242,17 +249,30 @@ def baseline(splits, classes, output):
         json.dumps(
             {
                 "classes": classes,
-                "coef": classifier.coef_.tolist(),
-                "intercept": classifier.intercept_.tolist(),
+                "coef": (classifier.coef_ / scaler.scale_).tolist(),
+                "intercept": (
+                    classifier.intercept_ - (classifier.coef_ / scaler.scale_) @ scaler.mean_
+                ).tolist(),
+                "coefficient_space": "raw pooled features; train-only scaler folded into coefficients",
+                "iterations": classifier.n_iter_.tolist(),
+                "converged": bool((classifier.n_iter_ < classifier.max_iter).all()),
             }
         ),
         encoding="utf-8",
     )
-    x, mask, y = splits["test"]
-    return metrics(y, classifier.predict_proba(mean_features(x, mask)), classes)
+    x, mask, y = splits[evaluation_split]
+    result = metrics(y, classifier.predict_proba(scaler.transform(mean_features(x, mask))), classes)
+    result.update(
+        {
+            "split": evaluation_split,
+            "converged": bool((classifier.n_iter_ < classifier.max_iter).all()),
+            "iterations": classifier.n_iter_.tolist(),
+        }
+    )
+    return result
 
 
-def prepare(root, config, output):
+def prepare(root, config, output, validation_only=False):
     records, fingerprint, excluded = load_soccernet(root)
     (output / "dataset-audit.json").write_text(
         json.dumps(
@@ -268,6 +288,8 @@ def prepare(root, config, output):
     encoder = Encoder()
     splits = {}
     for split in ("train", "validation", "test"):
+        if validation_only and split == "test":
+            continue
         selected = [r for r in records if r.split == split]
         if not selected:
             raise ValueError(f"Empty {split} split")
@@ -322,6 +344,11 @@ def main():
     parser.add_argument("--config", type=Path, default=Path("configs/smoke.json"))
     parser.add_argument("--dataset", type=Path)
     parser.add_argument("--smoke", action="store_true")
+    parser.add_argument(
+        "--validation-only",
+        action="store_true",
+        help="Development run: do not extract or evaluate test features",
+    )
     parser.add_argument("--resume", type=Path)
     parser.add_argument("--output", type=Path)
     args = parser.parse_args()
@@ -337,7 +364,9 @@ def main():
     RUN_OUTPUT = output
     progress(output, "starting")
     splits, fingerprint, classes = (
-        synthetic(config) if args.smoke else prepare(args.dataset, config, output)
+        synthetic(config)
+        if args.smoke
+        else prepare(args.dataset, config, output, args.validation_only)
     )
     tracking = Path("artifacts/mlflow.sqlite").resolve()
     tracking.parent.mkdir(exist_ok=True)
@@ -347,9 +376,15 @@ def main():
     )
     with mlflow.start_run() as run:
         mlflow.log_params(config | {"dataset_fingerprint": fingerprint, "synthetic": args.smoke})
-        baseline_result = baseline(splits, classes, output)
+        evaluation_split = "validation" if args.validation_only else "test"
+        progress(output, "baseline", evaluation_split=evaluation_split)
+        baseline_result = baseline(splits, classes, output, evaluation_split)
+        (output / "baseline-metrics.json").write_text(
+            json.dumps(baseline_result, indent=2), encoding="utf-8"
+        )
+        progress(output, "training", epoch=0, max_epochs=config["epochs"])
         model, metadata, result = train_temporal(
-            splits, config, output, classes, fingerprint, args.resume
+            splits, config, output, classes, fingerprint, args.resume, evaluation_split
         )
         manifest = {
             "schema_version": 1,
@@ -376,7 +411,9 @@ def main():
                 if torch.cuda.is_available()
                 else None,
             },
-            "metrics_provenance": "test split; calibration/early stopping on validation",
+            "metrics_provenance": "validation-only development; no held-out test evaluation"
+            if args.validation_only
+            else "test split; calibration/early stopping on validation",
             "run_id": run.info.run_id,
         }
         report = {
@@ -390,9 +427,9 @@ def main():
         (output / "metrics.json").write_text(json.dumps(report, indent=2), encoding="utf-8")
         mlflow.log_metrics(
             {
-                "test_accuracy": result["accuracy"],
-                "test_macro_f1": result["report"]["macro avg"]["f1-score"],
-                "baseline_test_accuracy": baseline_result["accuracy"],
+                f"{evaluation_split}_accuracy": result["accuracy"],
+                f"{evaluation_split}_macro_f1": result["report"]["macro avg"]["f1-score"],
+                f"baseline_{evaluation_split}_accuracy": baseline_result["accuracy"],
                 "classifier_ms_per_incident": result["classifier_ms_per_incident"],
             }
         )

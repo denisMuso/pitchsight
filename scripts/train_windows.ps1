@@ -1,4 +1,4 @@
-param([string]$Dataset = '', [switch]$Smoke, [string]$Config = '', [string]$Resume = '', [string]$Output = '')
+param([string]$Dataset = '', [switch]$Smoke, [switch]$ValidationOnly, [string]$Config = '', [string]$Resume = '', [string]$Output = '')
 $ErrorActionPreference = 'Stop'
 Set-Location (Split-Path $PSScriptRoot -Parent)
 if (!$Smoke -and !$Dataset) { throw 'Provide -Dataset for authorized SoccerNet data, or -Smoke for engineering tests' }
@@ -7,5 +7,6 @@ $trainingArgs = @('-m', 'pitchsight.training.run', '--config', $Config)
 if ($Smoke) { $trainingArgs += '--smoke' } else { $trainingArgs += @('--dataset', $Dataset) }
 if ($Resume) { $trainingArgs += @('--resume', $Resume) }
 if ($Output) { $trainingArgs += @('--output', $Output) }
+if ($ValidationOnly) { $trainingArgs += '--validation-only' }
 & ./.venv/Scripts/python.exe @trainingArgs
 exit $LASTEXITCODE
